@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "tsnd --respawn d1/index.ts"
+    "start": "tsnd --respawn d2/index.ts"
   },
   "keywords": [],
   "author": "",
