@@ -6,146 +6,133 @@ type NumberRange = {
   number: number;
 };
 
-type SymbolNumberLineMap = {
-  symbol_indexes?: number[];
-  number_ranges?: NumberRange[];
-};
+type MapRangeOfIndexesParams = NumberRange;
 
-const digit_regex = /\d*[0-9]/g;
-const symbols_regex = /[-!$%^#&*()@_+|~=`{}\[\]:";'<>?,\/]/gi;
-
-const test_data = readFileSync("./d3/test_file.txt", "utf-8");
-
-const lines = test_data.split("\n").filter((line) => line);
-
-const symbol_number_line_map = new Map<number, SymbolNumberLineMap>();
-
-let sum = 0;
-
-type MapRangeOfIndexesParams = NumberRange & {
-  includeDirectAdjacents?: boolean;
-};
+type SymbolNumberMatches = Record<number, number[]>;
 
 const mapRangeOfIndexes = ({
   startIndex,
   endIndex,
-  includeDirectAdjacents,
 }: MapRangeOfIndexesParams) => {
-  let size = endIndex - startIndex + 1;
-
-  if (includeDirectAdjacents) {
-    size += 2;
-  }
+  const size = endIndex - startIndex + 3;
 
   return [...Array(size).keys()].map((i) => i + startIndex - 1);
 };
 
-type FindArrayIntersectionParams = {
-  arr_one: number[];
-  arr_two: number[];
-};
+const digit_regex = /\d*[0-9]/g;
+const symbols_regex = /[*]/g;
 
-const findArrayIntersection = ({
-  arr_one,
-  arr_two,
-}: FindArrayIntersectionParams) =>
-  arr_one.filter((num) => arr_two.includes(num));
+const test_data = readFileSync("./d3/test_file.txt", "utf-8");
 
-lines.map((line, index) => {
-  const found_symbols = Array.from(line.matchAll(symbols_regex));
-  const found_numbers = Array.from(line.matchAll(digit_regex));
+const lines = test_data.split("\n").filter((line) => line);
+let sum = 0;
 
-  let symbol_indexes: number[] | undefined = undefined;
-  let mapped_number_ranges: NumberRange[] | undefined = undefined;
+lines.forEach((line, lineIndex) => {
+  const line_symbol_matches = Array.from(line.matchAll(symbols_regex));
+  const line_number_matches = Array.from(line.matchAll(digit_regex));
 
-  if (found_symbols.length > 0) {
-    symbol_indexes = found_symbols.map(({ index }) => index) as number[];
-  }
+  if (!line_symbol_matches) return;
 
-  if (found_numbers.length > 0) {
-    mapped_number_ranges = found_numbers.map(({ index, "0": number }) => {
-      return {
+  const symbol_number_matches: SymbolNumberMatches = {};
+
+  Array.from(line_symbol_matches.values()).forEach((match) => {
+    line_number_matches.forEach(({ index, "0": number }) => {
+      if (!match || !match.index) return;
+
+      const number_range_including_adjacents = mapRangeOfIndexes({
         startIndex: index,
         endIndex: index || index === 0 ? index + number.length - 1 : 0,
         number: Number(number),
-      };
-    }) as NumberRange[];
-  }
+      } as NumberRange);
 
-  symbol_number_line_map.set(index, {
-    symbol_indexes,
-    number_ranges: mapped_number_ranges,
-  });
-});
+      const symbol_is_adjacent = number_range_including_adjacents.includes(
+        match.index
+      );
 
-Array.from(symbol_number_line_map.entries()).forEach(([lineIndex, lineMap]) => {
-  const current_line_numbers = lineMap.number_ranges;
-  const current_line_symbols = lineMap.symbol_indexes;
-
-  if (!current_line_numbers) return;
-
-  const line_before = symbol_number_line_map.get(lineIndex - 1);
-  const line_after = symbol_number_line_map.get(lineIndex + 1);
-
-  current_line_numbers.flatMap(({ startIndex, endIndex, number }) => {
-    const ranges = mapRangeOfIndexes({
-      startIndex,
-      endIndex,
-      number,
-      includeDirectAdjacents: true,
+      if (symbol_is_adjacent) {
+        symbol_number_matches[match.index] = symbol_number_matches[match.index]
+          ? [...symbol_number_matches[match.index], Number(number)]
+          : [Number(number)];
+      }
     });
 
-    if (current_line_symbols) {
-      const number_has_adjacent_symbol = findArrayIntersection({
-        arr_one: current_line_symbols,
-        arr_two: ranges,
-      });
+    const line_before_number_matches = lines[lineIndex - 1]
+      ? Array.from(lines[lineIndex - 1].matchAll(digit_regex))
+      : [];
 
-      if (number_has_adjacent_symbol.length > 0) {
-        console.debug(
-          `Adding: ${number} to sum. Same line`,
-          current_line_symbols
+    if (line_before_number_matches.length > 0) {
+      line_before_number_matches.forEach(({ index, "0": number }) => {
+        if (!match || !match.index) return;
+
+        const number_range_including_adjacents = mapRangeOfIndexes({
+          startIndex: index,
+          endIndex: index || index === 0 ? index + number.length - 1 : 0,
+          number: Number(number),
+        } as NumberRange);
+
+        const symbol_is_adjacent = number_range_including_adjacents.includes(
+          match.index
         );
 
-        sum += number;
-        return;
-      }
+        if (symbol_is_adjacent) {
+          symbol_number_matches[match.index] = symbol_number_matches[
+            match.index
+          ]
+            ? [...symbol_number_matches[match.index], Number(number)]
+            : [Number(number)];
+        }
+      });
     }
 
-    if (line_before?.symbol_indexes) {
-      const number_has_adjacent_symbol = findArrayIntersection({
-        arr_one: line_before.symbol_indexes,
-        arr_two: ranges,
-      });
+    const line_after_number_matches = lines[lineIndex + 1]
+      ? Array.from(lines[lineIndex + 1].matchAll(digit_regex))
+      : [];
 
-      if (number_has_adjacent_symbol.length > 0) {
-        console.debug(
-          `Adding: ${number} to sum. Line before`,
-          line_before.symbol_indexes
+    if (line_after_number_matches.length > 0) {
+      line_after_number_matches.forEach(({ index, "0": number }) => {
+        if (!match || !match.index) return;
+
+        const number_range_including_adjacents = mapRangeOfIndexes({
+          startIndex: index,
+          endIndex: index || index === 0 ? index + number.length - 1 : 0,
+          number: Number(number),
+        } as NumberRange);
+
+        const symbol_is_adjacent = number_range_including_adjacents.includes(
+          match.index
         );
 
-        sum += number;
-        return;
-      }
+        if (symbol_is_adjacent) {
+          symbol_number_matches[match.index] = symbol_number_matches[
+            match.index
+          ]
+            ? [...symbol_number_matches[match.index], Number(number)]
+            : [Number(number)];
+        }
+      });
     }
+  });
 
-    if (line_after?.symbol_indexes) {
-      const number_has_adjacent_symbol = findArrayIntersection({
-        arr_one: line_after.symbol_indexes,
-        arr_two: ranges,
-      });
+  Object.values(symbol_number_matches).forEach((number_matches) => {
+    if (number_matches.length === 2) {
+      const [numOne, numTwo] = number_matches;
 
-      if (number_has_adjacent_symbol.length > 0) {
-        console.debug(
-          `Adding: ${number} to sum. Line after`,
-          line_after.symbol_indexes
-        );
-
-        sum += number;
-        return;
-      }
+      sum += numOne * numTwo;
     }
   });
 });
 
-console.log(sum);
+console.log(`Sum: ${sum}`);
+
+// for each line which has a symbol
+// get its index position within a line
+// for current line
+// check for any direct adjacent numbers, if found add them to the index -> number[] map
+// repeat for line before and after
+// once done with the line
+// for each index (symbol) which has a number map === 2 (contains two numbers) multiply them together
+// add the result to the sum
+
+// could look at doing a map of numbers on each line
+// it would be a function which returned the lines numbers if already has been determined
+// else it will do a regex match on the line and will store in a set
