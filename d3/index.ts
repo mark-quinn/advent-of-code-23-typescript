@@ -123,16 +123,3 @@ lines.forEach((line, lineIndex) => {
 });
 
 console.log(`Sum: ${sum}`);
-
-// for each line which has a symbol
-// get its index position within a line
-// for current line
-// check for any direct adjacent numbers, if found add them to the index -> number[] map
-// repeat for line before and after
-// once done with the line
-// for each index (symbol) which has a number map === 2 (contains two numbers) multiply them together
-// add the result to the sum
-
-// could look at doing a map of numbers on each line
-// it would be a function which returned the lines numbers if already has been determined
-// else it will do a regex match on the line and will store in a set
